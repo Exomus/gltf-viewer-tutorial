@@ -63,6 +63,9 @@ int ViewerApplication::run()
   const auto vertexBufferObjectList = createBufferObjects(model);
   // TODO Creation of Vertex Array Objects
 
+  std::vector<VaoRange> vaoRangeList;
+  const auto vertexAttributeObjectList = createVertexArrayObjects(model,vertexBufferObjectList,vaoRangeList);
+
   // Setup OpenGL state for rendering
   glEnable(GL_DEPTH_TEST);
   glslProgram.use();
@@ -226,4 +229,97 @@ std::vector<GLuint> ViewerApplication::createBufferObjects(
   glBindBuffer(GL_ARRAY_BUFFER, 0);
 
   return std::move(vertexBufferObjectList);
+}
+
+std::vector<GLuint> ViewerApplication::createVertexArrayObjects(
+    const tinygltf::Model &model, const std::vector<GLuint> &bufferObjects,
+    std::vector<VaoRange> &meshIndexToVaoRange)
+{
+  /*
+   * Model contains meshes that contains primitives
+   * We want a VAO by primitives but we need to get track of all the VAO in the
+   * same mesh.
+   */
+  std::vector<GLuint> vertexArrayObjectList;
+
+  meshIndexToVaoRange.resize(model.meshes.size());
+
+  struct Attribute
+  {
+    const std::string NAME;
+    const int INDEX;
+  };
+
+  std::vector<Attribute> attributeList;
+  attributeList.push_back({"POSITION", 0});
+  attributeList.push_back({"NORMAL", 1});
+  attributeList.push_back({"TEXCOORD_0", 2});
+  for (const auto &mesh : model.meshes) {
+    const auto oldSize = vertexArrayObjectList.size();
+
+    auto vaoRange = VaoRange{static_cast<GLsizei>(oldSize),
+        static_cast<GLsizei>(mesh.primitives.size())};
+    meshIndexToVaoRange.push_back(vaoRange);
+
+    vertexArrayObjectList.resize(oldSize + mesh.primitives.size());
+
+    glGenVertexArrays(vaoRange.count, &vertexArrayObjectList[vaoRange.begin]);
+    for (unsigned long primitiveId = 0; primitiveId < mesh.primitives.size();
+         primitiveId++) {
+      auto primitiveVAO = vertexArrayObjectList[vaoRange.begin + primitiveId];
+      auto primitive = mesh.primitives[primitiveId];
+
+      glBindVertexArray(primitiveVAO);
+      for (Attribute attribute : attributeList) {
+        // I'm opening a scope because I want to reuse the variable iterator in
+        // the code for NORMAL and TEXCOORD_0
+        const auto iterator = primitive.attributes.find(attribute.NAME);
+        if (iterator !=
+            end(primitive
+                    .attributes)) { // If "POSITION" has been found in the map
+          // (*iterator).first is the key "POSITION", (*iterator).second is the
+          // value, ie. the index of the accessor for this attribute
+          const auto accessorIdx = (*iterator).second;
+          const auto &accessor = model.accessors[accessorIdx];
+          const auto &bufferView = model.bufferViews[accessor.bufferView];
+          const auto bufferIdx = bufferView.buffer;
+
+          const auto bufferObject = bufferObjects[bufferIdx];
+
+          glEnableVertexAttribArray(attribute.INDEX);
+          glBindBuffer(GL_ARRAY_BUFFER, bufferObject);
+          const auto byteOffset = accessor.byteOffset + bufferView.byteOffset;
+          glVertexAttribPointer(attribute.INDEX, accessor.type,
+              accessor.componentType, GL_FALSE, GLsizei(bufferView.byteStride),
+              (const GLvoid *)byteOffset);
+          // Remember size is obtained with accessor.type, type is obtained with
+          // accessor.componentType. The stride is obtained in the bufferView,
+          // normalized is always GL_FALSE, and pointer is the byteOffset (don't
+          // forget the cast).
+        }
+
+        if (primitive.indices >=
+            0) { // Setting up the Index buffer object if exists
+          const auto accessorIdx = primitive.indices;
+          const auto &accessor = model.accessors[accessorIdx];
+          const auto &bufferView = model.bufferViews[accessor.bufferView];
+          const auto bufferIdx = bufferView.buffer;
+
+          assert(GL_ELEMENT_ARRAY_BUFFER == bufferView.target);
+          glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,
+              bufferObjects[bufferIdx]); // Binding the index buffer to
+          // GL_ELEMENT_ARRAY_BUFFER while the VAO
+          // is bound is enough to tell OpenGL we
+          // want to use that index buffer for that
+          // VAO
+        }
+      }
+    }
+  }
+
+  std::clog << "Number of VAOs: " << vertexArrayObjectList.size() << std::endl;
+
+  glBindBuffer(GL_ARRAY_BUFFER, 0);
+  glBindVertexArray(0);
+  return vertexArrayObjectList;
 }

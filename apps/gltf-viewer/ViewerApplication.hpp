@@ -46,18 +46,42 @@ private:
   GLFWHandle m_GLFWHandle{int(m_nWindowWidth), int(m_nWindowHeight),
       "glTF Viewer",
       m_OutputPath.empty()}; // show the window only if m_OutputPath is empty
-                             /*
-                               ! THE ORDER OF DECLARATION OF MEMBER VARIABLES IS IMPORTANT !
-                               - m_ImGuiIniFilename.c_str() will be used by ImGUI in ImGui::Shutdown, which
-                               will be called in destructor of m_GLFWHandle. So we must declare
-                               m_ImGuiIniFilename before m_GLFWHandle so that m_ImGuiIniFilename
-                               destructor is called after.
-                               - m_GLFWHandle must be declared before the creation of any object managing
-                               OpenGL resources (e.g. GLProgram, GLShader) because it is responsible for
-                               the creation of a GLFW windows and thus a GL context which must exists
-                               before most of OpenGL function calls.
-                             */
+  /*
+      ! THE ORDER OF DECLARATION OF MEMBER VARIABLES IS IMPORTANT !
+      - m_ImGuiIniFilename.c_str() will be used by ImGUI in ImGui::Shutdown,
+   which will be called in destructor of m_GLFWHandle. So we must declare
+      m_ImGuiIniFilename before m_GLFWHandle so that m_ImGuiIniFilename
+      destructor is called after.
+      - m_GLFWHandle must be declared before the creation of any object managing
+      OpenGL resources (e.g. GLProgram, GLShader) because it is responsible for
+   the creation of a GLFW windows and thus a GL context which must exists
+   before most of OpenGL function calls.
+       */
+  /**
+   * Loads a glTF file and write in the reference of model.
+   * @param model
+   * @return A boolean that can be either true if successful loading or false in
+   * case of failure
+   */
   bool loadGltfFile(tinygltf::Model &model);
 
+  /**
+   * Creates a list of buffer objects
+   * @param model Model from which extract data
+   * @return a list of VBO containing the data of the buffer objects stored in
+   * the glTF model
+   */
   std::vector<GLuint> createBufferObjects(const tinygltf::Model &model);
+
+  /**
+   * Creates a vertex array objects for each meshes
+   * @param model Model to fetch the meshes and primitives structure
+   * @param bufferObjects Created VBO from the model file
+   * @param meshIndexToVaoRange List of range of indices for the VAO (begin
+   * offset + a range starting at the offset)
+   * @return the vector containing all the vao for each vbo
+   */
+  std::vector<GLuint> createVertexArrayObjects(const tinygltf::Model &model,
+      const std::vector<GLuint> &bufferObjects,
+      std::vector<VaoRange> &meshIndexToVaoRange);
 };
