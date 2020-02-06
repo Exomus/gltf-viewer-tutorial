@@ -56,7 +56,10 @@ int ViewerApplication::run()
 
   tinygltf::Model model;
   // TODO Loading the glTF file
-  bool isLoadedGltfFile = loadGltfFile(model);
+
+    if (!loadGltfFile(model)) {
+        return -1;
+    }
   // TODO Creation of Buffer Objects
 
   // TODO Creation of Vertex Array Objects
