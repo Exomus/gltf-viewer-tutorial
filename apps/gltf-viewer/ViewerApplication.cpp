@@ -55,13 +55,12 @@ int ViewerApplication::run()
   }
 
   tinygltf::Model model;
-  // TODO Loading the glTF file
 
-    if (!loadGltfFile(model)) {
-        return -1;
-    }
-  // TODO Creation of Buffer Objects
+  if (!loadGltfFile(model)) {
+    return -1;
+  }
 
+  const auto vertexBufferObjectList = createBufferObjects(model);
   // TODO Creation of Vertex Array Objects
 
   // Setup OpenGL state for rendering
@@ -186,27 +185,45 @@ ViewerApplication::ViewerApplication(const fs::path &appPath, uint32_t width,
   printGLVersion();
 }
 
+bool ViewerApplication::loadGltfFile(tinygltf::Model &model)
+{
 
-bool ViewerApplication::loadGltfFile(tinygltf::Model & model) {
+  using namespace tinygltf;
 
-    using namespace tinygltf;
+  TinyGLTF loader;
+  std::string error;
+  std::string warning;
 
-    TinyGLTF loader;
-    std::string error;
-    std::string warning;
+  bool ret = loader.LoadASCIIFromFile(
+      &model, &error, &warning, m_gltfFilePath.string());
+  if (!warning.empty()) {
+    std::cerr << "Warn: " << warning.c_str() << std::endl;
+  }
 
-    bool ret = loader.LoadASCIIFromFile(&model, &error, &warning, m_gltfFilePath.string());
-    if (!warning.empty()) {
-        std::cerr << "Warn: " << warning.c_str() <<  std::endl;
-    }
+  if (!error.empty()) {
+    std::cerr << "Error: " << error.c_str() << std::endl;
+  }
 
-    if (!error.empty()) {
-        std::cerr << "Error: " << error.c_str() <<  std::endl;
-    }
+  if (!ret) {
+    std::cerr << "Failed to parse glTF" << std::endl;
+    return false;
+  }
+  return true;
+}
 
-    if (!ret) {
-        std::cerr << "Failed to parse glTF" << std::endl;
-        return false;
-    }
-    return true;
+std::vector<GLuint> ViewerApplication::createBufferObjects(
+    const tinygltf::Model &model)
+{
+  std::vector<GLuint> vertexBufferObjectList(model.buffers.size(), 0);
+  glGenBuffers(model.buffers.size(), vertexBufferObjectList.data());
+
+  for (unsigned long bufferIdx = 0; bufferIdx < model.buffers.size();
+       bufferIdx++) {
+    glBindBuffer(GL_ARRAY_BUFFER, vertexBufferObjectList[bufferIdx]);
+    glBufferStorage(GL_ARRAY_BUFFER, model.buffers[bufferIdx].data.size(),
+        model.buffers[bufferIdx].data.data(), 0);
+  }
+  glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+  return std::move(vertexBufferObjectList);
 }

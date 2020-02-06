@@ -1,10 +1,10 @@
 #pragma once
 
-#include <tiny_gltf.h>
 #include "utils/GLFWHandle.hpp"
 #include "utils/cameras.hpp"
 #include "utils/filesystem.hpp"
 #include "utils/shaders.hpp"
+#include <tiny_gltf.h>
 
 class ViewerApplication
 {
@@ -46,16 +46,18 @@ private:
   GLFWHandle m_GLFWHandle{int(m_nWindowWidth), int(m_nWindowHeight),
       "glTF Viewer",
       m_OutputPath.empty()}; // show the window only if m_OutputPath is empty
-  /*
-    ! THE ORDER OF DECLARATION OF MEMBER VARIABLES IS IMPORTANT !
-    - m_ImGuiIniFilename.c_str() will be used by ImGUI in ImGui::Shutdown, which
-    will be called in destructor of m_GLFWHandle. So we must declare
-    m_ImGuiIniFilename before m_GLFWHandle so that m_ImGuiIniFilename
-    destructor is called after.
-    - m_GLFWHandle must be declared before the creation of any object managing
-    OpenGL resources (e.g. GLProgram, GLShader) because it is responsible for
-    the creation of a GLFW windows and thus a GL context which must exists
-    before most of OpenGL function calls.
-  */
-    bool loadGltfFile(tinygltf::Model &model);
+                             /*
+                               ! THE ORDER OF DECLARATION OF MEMBER VARIABLES IS IMPORTANT !
+                               - m_ImGuiIniFilename.c_str() will be used by ImGUI in ImGui::Shutdown, which
+                               will be called in destructor of m_GLFWHandle. So we must declare
+                               m_ImGuiIniFilename before m_GLFWHandle so that m_ImGuiIniFilename
+                               destructor is called after.
+                               - m_GLFWHandle must be declared before the creation of any object managing
+                               OpenGL resources (e.g. GLProgram, GLShader) because it is responsible for
+                               the creation of a GLFW windows and thus a GL context which must exists
+                               before most of OpenGL function calls.
+                             */
+  bool loadGltfFile(tinygltf::Model &model);
+
+  std::vector<GLuint> createBufferObjects(const tinygltf::Model &model);
 };
