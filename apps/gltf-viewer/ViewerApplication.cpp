@@ -9,6 +9,8 @@
 #include <glm/gtx/io.hpp>
 
 #include "utils/cameras.hpp"
+#include "utils/gltf.hpp"
+#include "utils/images.hpp"
 
 #include <stb_image_write.h>
 #include <tiny_gltf.h>
@@ -61,11 +63,10 @@ int ViewerApplication::run()
   }
 
   const auto vertexBufferObjectList = createBufferObjects(model);
-  // TODO Creation of Vertex Array Objects
 
-  std::vector<VaoRange> vaoRangeList;
+  std::vector<VaoRange> meshVaoRangeList;
   const auto vertexAttributeObjectList =
-      createVertexArrayObjects(model, vertexBufferObjectList, vaoRangeList);
+      createVertexArrayObjects(model, vertexBufferObjectList, meshVaoRangeList);
 
   // Setup OpenGL state for rendering
   glEnable(GL_DEPTH_TEST);
@@ -83,17 +84,73 @@ int ViewerApplication::run()
     const std::function<void(int, const glm::mat4 &)> drawNode =
         [&](int nodeIdx, const glm::mat4 &parentMatrix) {
           // TODO The drawNode function
+          auto node = model.nodes[nodeIdx];
+          auto nodeModelMatrix =
+              getLocalToWorldMatrix(model.nodes[nodeIdx], parentMatrix);
+          if (node.mesh >= 0) {
+            const auto modelViewMatrix = viewMatrix * nodeModelMatrix;
+            const auto modelViewProjectionMatrix = projMatrix * modelViewMatrix;
+            const auto normalMatrix =
+                glm::transpose(glm::inverse(modelViewMatrix));
+
+            glUniformMatrix4fv(modelViewMatrixLocation, 1, GL_FALSE,
+                value_ptr(modelViewMatrix));
+            glUniformMatrix4fv(modelViewProjMatrixLocation, 1, GL_FALSE,
+                value_ptr(modelViewProjectionMatrix));
+            glUniformMatrix4fv(
+                normalMatrixLocation, 1, GL_FALSE, value_ptr(normalMatrix));
+
+            const auto &mesh = model.meshes[node.mesh];
+            const auto &vaoRange = meshVaoRangeList[node.mesh];
+
+            for (uint primIdx = 0; primIdx < mesh.primitives.size();
+                 primIdx++) {
+              const auto &primitiveVao =
+                  vertexAttributeObjectList[vaoRange.begin + primIdx];
+              const auto &primitive = mesh.primitives[primIdx];
+
+              glBindVertexArray(primitiveVao);
+              if (primitive.indices >= 0) {
+                const auto &accessor = model.accessors[primitive.indices];
+                const auto &bufferView = model.bufferViews[accessor.bufferView];
+                const auto byteOffset =
+                    accessor.byteOffset + bufferView.byteOffset;
+                glDrawElements(primitive.mode, GLsizei(accessor.count),
+                    accessor.componentType, (const GLvoid *)byteOffset);
+              } else {
+                const auto accessorIdx = (*begin(primitive.attributes)).second;
+                const auto &accessor = model.accessors[accessorIdx];
+                glDrawArrays(primitive.mode, 0, GLsizei(accessor.count));
+              }
+            }
+          }
+
+          for (const auto &childIdx : node.children) {
+            drawNode(childIdx, nodeModelMatrix);
+          }
         };
 
     // Draw the scene referenced by gltf file
     if (model.defaultScene >= 0) {
-      // TODO Draw all nodes
       for (auto nodeId : model.scenes[model.defaultScene].nodes) {
         drawNode(nodeId, glm::mat4(1));
       }
     }
   };
 
+  if(!m_OutputPath.empty()){
+    std::vector<unsigned char> pixels(m_nWindowWidth * m_nWindowHeight * 3);
+    renderToImage(m_nWindowWidth, m_nWindowHeight, 3, pixels.data(), [&]() {
+      drawScene(cameraController.getCamera());
+    });
+
+    flipImageYAxis(m_nWindowWidth, m_nWindowHeight, 3, pixels.data());
+    const auto strPath = m_OutputPath.string();
+    stbi_write_png(
+        strPath.c_str(), m_nWindowWidth, m_nWindowHeight, 3, pixels.data(), 0);
+
+    return 0;
+  }
   // Loop until the user closes the window
   for (auto iterationCount = 0u; !m_GLFWHandle.shouldClose();
        ++iterationCount) {
@@ -185,7 +242,7 @@ ViewerApplication::ViewerApplication(const fs::path &appPath, uint32_t width,
 
   ImGui::GetIO().IniFilename =
       m_ImGuiIniFilename.c_str(); // At exit, ImGUI will store its windows
-                                  // positions in this file
+  // positions in this file
 
   glfwSetKeyCallback(m_GLFWHandle.window(), keyCallback);
 
