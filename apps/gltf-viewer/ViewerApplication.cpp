@@ -64,7 +64,8 @@ int ViewerApplication::run()
   // TODO Creation of Vertex Array Objects
 
   std::vector<VaoRange> vaoRangeList;
-  const auto vertexAttributeObjectList = createVertexArrayObjects(model,vertexBufferObjectList,vaoRangeList);
+  const auto vertexAttributeObjectList =
+      createVertexArrayObjects(model, vertexBufferObjectList, vaoRangeList);
 
   // Setup OpenGL state for rendering
   glEnable(GL_DEPTH_TEST);
@@ -87,6 +88,9 @@ int ViewerApplication::run()
     // Draw the scene referenced by gltf file
     if (model.defaultScene >= 0) {
       // TODO Draw all nodes
+      for (auto nodeId : model.scenes[model.defaultScene].nodes) {
+        drawNode(nodeId, glm::mat4(1));
+      }
     }
   };
 
