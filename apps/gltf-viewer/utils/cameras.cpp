@@ -107,4 +107,98 @@ bool FirstPersonCameraController::update(float elapsedTime)
   return true;
 }
 
-bool TrackballCameraController::update(float elapsedTime) { return false; }
+bool TrackballCameraController::update(float elapsedTime)
+{
+  if (glfwGetMouseButton(m_pWindow, GLFW_MOUSE_BUTTON_MIDDLE) &&
+      !m_MiddleButtonPressed) {
+    m_MiddleButtonPressed = true;
+    glfwGetCursorPos(
+        m_pWindow, &m_LastCursorPosition.x, &m_LastCursorPosition.y);
+  } else if (!glfwGetMouseButton(m_pWindow, GLFW_MOUSE_BUTTON_MIDDLE) &&
+             m_MiddleButtonPressed) {
+    m_MiddleButtonPressed = false;
+  }
+
+  const auto cursorDelta = ([&]() {
+    if (m_MiddleButtonPressed) {
+      dvec2 cursorPosition;
+      glfwGetCursorPos(m_pWindow, &cursorPosition.x, &cursorPosition.y);
+      const auto delta = cursorPosition - m_LastCursorPosition;
+      m_LastCursorPosition = cursorPosition;
+      return delta;
+    }
+    return dvec2(0);
+  })();
+
+  if (glfwGetKey(m_pWindow, GLFW_KEY_LEFT_SHIFT)) {
+    // Pan
+    const auto truckLeft = 0.01f * float(cursorDelta.x);
+    const auto pedestalUp = 0.01f * float(cursorDelta.y);
+    const auto hasMoved = truckLeft || pedestalUp;
+    if (!hasMoved) {
+      return false;
+    }
+
+    m_camera.moveLocal(truckLeft, pedestalUp, 0.f);
+
+    return true;
+  }
+
+  if (glfwGetKey(m_pWindow, GLFW_KEY_LEFT_CONTROL)) {
+    // Zoom
+    auto mouseOffset = 0.01f * float(cursorDelta.x);
+    if (mouseOffset == 0.f) {
+      return false;
+    }
+
+    // We need to move along the view vector of the camera
+    const auto viewVector = m_camera.center() - m_camera.eye();
+    const auto l = glm::length(viewVector);
+    if (mouseOffset > 0.f) {
+      // We don't want to move more that the length of the view vector (cannot
+      // go beyond target)
+      mouseOffset = glm::min(mouseOffset, l - 1e-4f);
+    }
+    // Normalize view vector for the translation
+    const auto front = viewVector / l;
+    const auto translationVector = mouseOffset * front;
+
+    // Update camera with new eye position
+    const auto newEye = m_camera.eye() + translationVector;
+    m_camera = Camera(newEye, m_camera.center(), m_worldUpAxis);
+
+    return true;
+  }
+
+  // Rotate around target
+
+  const auto longitudeAngle = 0.01f * float(cursorDelta.y); // Vertical angle
+  const auto latitudeAngle = -0.01f * float(cursorDelta.x); // Horizontal angle
+  const auto hasMoved = longitudeAngle || latitudeAngle;
+  if (!hasMoved) {
+    return false;
+  }
+
+  // We need to rotate eye around center, for that we rotate the vector [center,
+  // eye] (= depthAxis) in order to compute a new eye position
+  const auto depthAxis = m_camera.eye() - m_camera.center();
+
+  // Start with the vertical rotation, which is done around the horizontal axis
+  // of the camera and can be obtained with left()
+  const auto horizontalAxis = m_camera.left();
+  const auto longitudeRotationMatrix =
+      rotate(mat4(1), longitudeAngle, horizontalAxis);
+  auto rotatedDepthAxis = vec3(longitudeRotationMatrix * vec4(depthAxis, 0));
+
+  // Then the horizontal rotation, which is done around the world up axis.
+  const auto latitudeRotationMatrix =
+      rotate(mat4(1), latitudeAngle, m_worldUpAxis);
+  const auto finalDepthAxis =
+      vec3(latitudeRotationMatrix * vec4(rotatedDepthAxis, 0));
+
+  // Update camera with new eye position
+  const auto newEye = m_camera.center() + finalDepthAxis;
+  m_camera = Camera(newEye, m_camera.center(), m_worldUpAxis);
+
+  return true;
+}

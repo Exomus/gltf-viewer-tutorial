@@ -58,13 +58,11 @@ int ViewerApplication::run()
 
   // TODO Implement a new CameraController model and use it instead. Propose the
   // choice from the GUI
-  FirstPersonCameraController cameraController{
+  TrackballCameraController cameraController{
       m_GLFWHandle.window(), 1.0f * maxDistance};
   if (m_hasUserCamera) {
     cameraController.setCamera(m_userCamera);
   } else {
-    // TODO Use scene bounds to compute a better default camera
-
     const auto center = (boundingBoxMax + boundingBoxMin) / 2.f;
     const auto up = glm::vec3(0, 1, 0);
     const auto eye = diagonalVect.z > 0
