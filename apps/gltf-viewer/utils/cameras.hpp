@@ -143,7 +143,20 @@ private:
   glm::vec3 m_up;
 };
 
-class FirstPersonCameraController
+class CameraController
+{
+public:
+  // Always add a virtual destructor to an interface
+  virtual ~CameraController() {}
+
+  virtual void setCamera(const Camera &camera) = 0;
+
+  virtual const Camera &getCamera() const = 0;
+
+  virtual bool update(float elapsedTime) = 0;
+};
+
+class FirstPersonCameraController : public CameraController
 {
 public:
   FirstPersonCameraController(GLFWwindow *window, float speed = 1.f,
@@ -195,8 +208,7 @@ private:
   Camera m_camera;
 };
 
-// todo Blender like camera
-class TrackballCameraController
+class TrackballCameraController : public CameraController
 {
 public:
   TrackballCameraController(GLFWwindow *window, float speed = 1.f,
