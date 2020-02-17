@@ -30,6 +30,12 @@ int ViewerApplication::run()
       compileProgram({m_ShadersRootPath / m_AppName / m_vertexShader,
           m_ShadersRootPath / m_AppName / m_fragmentShader});
 
+  tinygltf::Model model;
+
+  if (!loadGltfFile(model)) {
+    return -1;
+  }
+
   const auto modelViewProjMatrixLocation =
       glGetUniformLocation(glslProgram.glId(), "uModelViewProjMatrix");
   const auto modelViewMatrixLocation =
@@ -38,8 +44,14 @@ int ViewerApplication::run()
       glGetUniformLocation(glslProgram.glId(), "uNormalMatrix");
 
   // Build projection matrix
-  auto maxDistance = 500.f; // TODO use scene bounds instead to compute this
-  maxDistance = maxDistance > 0.f ? maxDistance : 100.f;
+  glm::vec3 boundingBoxMax;
+  glm::vec3 boundingBoxMin;
+
+  computeSceneBounds(model, boundingBoxMin, boundingBoxMax);
+
+  auto diagonalVect = boundingBoxMax - boundingBoxMin;
+  auto distance = glm::length(diagonalVect);
+  auto maxDistance = distance > 0 ? distance : 100; // TODO use scene bounds instead to compute this
   const auto projMatrix =
       glm::perspective(70.f, float(m_nWindowWidth) / m_nWindowHeight,
           0.001f * maxDistance, 1.5f * maxDistance);
@@ -47,19 +59,19 @@ int ViewerApplication::run()
   // TODO Implement a new CameraController model and use it instead. Propose the
   // choice from the GUI
   FirstPersonCameraController cameraController{
-      m_GLFWHandle.window(), 0.5f * maxDistance};
+      m_GLFWHandle.window(), 1.0f * maxDistance};
   if (m_hasUserCamera) {
     cameraController.setCamera(m_userCamera);
   } else {
     // TODO Use scene bounds to compute a better default camera
-    cameraController.setCamera(
-        Camera{glm::vec3(0, 0, 0), glm::vec3(0, 0, -1), glm::vec3(0, 1, 0)});
-  }
 
-  tinygltf::Model model;
+    const auto center = (boundingBoxMax + boundingBoxMin) / 2.f;
+    const auto up = glm::vec3(0, 1, 0);
+    const auto eye = diagonalVect.z > 0
+                         ? center + diagonalVect
+                         : center + 2.f * glm::cross(diagonalVect, up);
 
-  if (!loadGltfFile(model)) {
-    return -1;
+    cameraController.setCamera(Camera{eye, center, up});
   }
 
   const auto vertexBufferObjectList = createBufferObjects(model);
@@ -138,11 +150,10 @@ int ViewerApplication::run()
     }
   };
 
-  if(!m_OutputPath.empty()){
+  if (!m_OutputPath.empty()) {
     std::vector<unsigned char> pixels(m_nWindowWidth * m_nWindowHeight * 3);
-    renderToImage(m_nWindowWidth, m_nWindowHeight, 3, pixels.data(), [&]() {
-      drawScene(cameraController.getCamera());
-    });
+    renderToImage(m_nWindowWidth, m_nWindowHeight, 3, pixels.data(),
+        [&]() { drawScene(cameraController.getCamera()); });
 
     flipImageYAxis(m_nWindowWidth, m_nWindowHeight, 3, pixels.data());
     const auto strPath = m_OutputPath.string();
