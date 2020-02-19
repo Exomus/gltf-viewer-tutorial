@@ -50,7 +50,7 @@ int ViewerApplication::run()
 
   glm::vec3 lightDirection(1, 1, 1);
   glm::vec3 lightIntensity(1, 1, 1);
-
+  bool isLightComingFromCamera = false;
 
   // Build projection matrix
   glm::vec3 boundingBoxMax;
@@ -99,15 +99,26 @@ int ViewerApplication::run()
     const auto viewMatrix = camera.getViewMatrix();
 
     if (lightDirectionLocation >= 0) {
-      const auto viewLightDirection =
-          glm::normalize(glm::vec3(viewMatrix * glm::vec4(lightDirection, 0.))); // 0 in w for the homogenous component (vector = 0, point != 0)
-      glUniform3f(lightDirectionLocation, viewLightDirection[0],
-          viewLightDirection[1], viewLightDirection[2]);
+
+      if (isLightComingFromCamera) {
+
+        static auto lightCamera = glm::vec3(0.f, 0.f, 1.f);
+
+        glUniform3f(lightDirectionLocation, lightCamera[0], lightCamera[1],
+            lightCamera[2]);
+      } else {
+        const auto viewLightDirection = glm::normalize(
+            glm::vec3(viewMatrix * glm::vec4(lightDirection,
+                                       0.))); // 0 in w for the homogenous
+        // component (vector = 0, point != 0)
+        glUniform3f(lightDirectionLocation, viewLightDirection[0],
+            viewLightDirection[1], viewLightDirection[2]);
+      }
     }
 
     if (lightIntensityLocation >= 0) {
       glUniform3f(lightIntensityLocation, lightIntensity[0], lightIntensity[1],
-                  lightIntensity[2]);
+          lightIntensity[2]);
     }
 
     // The recursive function that should draw a node
@@ -186,6 +197,7 @@ int ViewerApplication::run()
     const auto seconds = glfwGetTime();
 
     const auto camera = cameraController->getCamera();
+
     drawScene(camera);
 
     // GUI code:
@@ -233,6 +245,30 @@ int ViewerApplication::run()
           }
           cameraController->setCamera(currentCamera);
         }
+      }
+      if (ImGui::CollapsingHeader("Lighting", ImGuiTreeNodeFlags_DefaultOpen)) {
+
+        static auto thetaLight = 0.f;
+        static auto phiLight = 0.f;
+
+        if (ImGui::SliderFloat(
+                "Theta", &thetaLight, 0, glm::pi<float>()) ||
+            ImGui::SliderFloat(
+                "Phi", &phiLight, 0, 2 * glm::pi<float>())) {
+          lightDirection = glm::vec3(glm::sin(thetaLight) * glm::cos(phiLight),
+              glm::cos(thetaLight), glm::sin(thetaLight) * glm::sin(phiLight));
+        }
+
+        static glm::vec3 lightColor(1.f, 1.f, 1.f);
+        static float lightIntensityFactor = 1.f;
+
+        if (ImGui::ColorEdit3("color", (float *)&lightColor) ||
+            ImGui::InputFloat("intensity", &lightIntensityFactor)) {
+          lightIntensity = lightColor * lightIntensityFactor;
+        }
+
+        ImGui::Checkbox(
+            "Is the light coming from the camera ?", &isLightComingFromCamera);
       }
       ImGui::End();
     }
