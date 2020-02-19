@@ -43,6 +43,8 @@ int ViewerApplication::run()
   const auto normalMatrixLocation =
       glGetUniformLocation(glslProgram.glId(), "uNormalMatrix");
 
+
+
   // Build projection matrix
   glm::vec3 boundingBoxMax;
   glm::vec3 boundingBoxMin;
