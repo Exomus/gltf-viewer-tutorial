@@ -43,6 +43,13 @@ int ViewerApplication::run()
   const auto normalMatrixLocation =
       glGetUniformLocation(glslProgram.glId(), "uNormalMatrix");
 
+  const auto lightDirectionLocation =
+      glGetUniformLocation(glslProgram.glId(), "uLightDirection");
+  const auto lightIntensityLocation =
+      glGetUniformLocation(glslProgram.glId(), "uLightIntensity");
+
+  glm::vec3 lightDirection(1, 1, 1);
+  glm::vec3 lightIntensity(1, 1, 1);
 
 
   // Build projection matrix
@@ -91,11 +98,22 @@ int ViewerApplication::run()
 
     const auto viewMatrix = camera.getViewMatrix();
 
+    if (lightDirectionLocation >= 0) {
+      const auto viewLightDirection =
+          glm::normalize(glm::vec3(viewMatrix * glm::vec4(lightDirection, 0.))); // 0 in w for the homogenous component (vector = 0, point != 0)
+      glUniform3f(lightDirectionLocation, viewLightDirection[0],
+          viewLightDirection[1], viewLightDirection[2]);
+    }
+
+    if (lightIntensityLocation >= 0) {
+      glUniform3f(lightIntensityLocation, lightIntensity[0], lightIntensity[1],
+                  lightIntensity[2]);
+    }
+
     // The recursive function that should draw a node
     // We use a std::function because a simple lambda cannot be recursive
     const std::function<void(int, const glm::mat4 &)> drawNode =
         [&](int nodeIdx, const glm::mat4 &parentMatrix) {
-          // TODO The drawNode function
           auto node = model.nodes[nodeIdx];
           auto nodeModelMatrix =
               getLocalToWorldMatrix(model.nodes[nodeIdx], parentMatrix);
