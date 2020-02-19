@@ -51,7 +51,7 @@ int ViewerApplication::run()
 
   auto diagonalVect = boundingBoxMax - boundingBoxMin;
   auto distance = glm::length(diagonalVect);
-  auto maxDistance = distance > 0 ? distance : 100; // TODO use scene bounds instead to compute this
+  auto maxDistance = distance > 0 ? distance : 100;
   const auto projMatrix =
       glm::perspective(70.f, float(m_nWindowWidth) / m_nWindowHeight,
           0.001f * maxDistance, 1.5f * maxDistance);
