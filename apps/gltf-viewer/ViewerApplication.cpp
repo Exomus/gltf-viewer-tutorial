@@ -81,11 +81,31 @@ int ViewerApplication::run()
     cameraController->setCamera(Camera{eye, center, up});
   }
 
+  const auto textureObjects = createTextureObjects(model);
+  GLuint whiteTexture;
+  glGenTextures(1,&whiteTexture);
+  float white[] = {1, 1, 1, 1};
+
+  glBindTexture(GL_TEXTURE_2D, whiteTexture);
+
+  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 2, 2, 0,
+               GL_RGBA, GL_FLOAT, white);
+
+
+  glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+  glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+  glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_R, GL_REPEAT);
+  glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_S, GL_REPEAT);
+  glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_T, GL_REPEAT);
+
+  glBindTexture(GL_TEXTURE_2D, 0);
+
   const auto vertexBufferObjectList = createBufferObjects(model);
 
   std::vector<VaoRange> meshVaoRangeList;
   const auto vertexAttributeObjectList =
       createVertexArrayObjects(model, vertexBufferObjectList, meshVaoRangeList);
+
 
   // Setup OpenGL state for rendering
   glEnable(GL_DEPTH_TEST);
@@ -251,10 +271,8 @@ int ViewerApplication::run()
         static auto thetaLight = 0.f;
         static auto phiLight = 0.f;
 
-        if (ImGui::SliderFloat(
-                "Theta", &thetaLight, 0, glm::pi<float>()) ||
-            ImGui::SliderFloat(
-                "Phi", &phiLight, 0, 2 * glm::pi<float>())) {
+        if (ImGui::SliderFloat("Theta", &thetaLight, 0, glm::pi<float>()) ||
+            ImGui::SliderFloat("Phi", &phiLight, 0, 2 * glm::pi<float>())) {
           lightDirection = glm::vec3(glm::sin(thetaLight) * glm::cos(phiLight),
               glm::cos(thetaLight), glm::sin(thetaLight) * glm::sin(phiLight));
         }
@@ -328,6 +346,13 @@ ViewerApplication::ViewerApplication(const fs::path &appPath, uint32_t width,
   glfwSetKeyCallback(m_GLFWHandle.window(), keyCallback);
 
   printGLVersion();
+
+  defaultSampler.minFilter = GL_LINEAR;
+  defaultSampler.magFilter = GL_LINEAR;
+  defaultSampler.wrapS = GL_REPEAT;
+  defaultSampler.wrapT = GL_REPEAT;
+  defaultSampler.wrapR = GL_REPEAT;
+
 }
 
 bool ViewerApplication::loadGltfFile(tinygltf::Model &model)
@@ -464,4 +489,39 @@ std::vector<GLuint> ViewerApplication::createVertexArrayObjects(
   glBindBuffer(GL_ARRAY_BUFFER, 0);
   glBindVertexArray(0);
   return vertexArrayObjectList;
+}
+
+std::vector<GLuint> ViewerApplication::createTextureObjects(
+    const tinygltf::Model &model)
+{
+  std::vector<GLuint> textureList(model.textures.size());
+
+  for (uint i = 0; i < model.textures.size(); i++) {
+    glGenTextures(1, &textureList[i]);
+
+    glBindTexture(GL_TEXTURE_2D, textureList[i]);
+
+    const auto &texture = model.textures[i];
+    assert(texture.source >= 0);
+    const auto &image = model.images[texture.source];
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, image.width, image.height, 0,
+                 GL_RGBA, image.pixel_type, image.image.data());
+
+    const auto &sampler = texture.sampler >= 0 ? model.samplers[texture.sampler] : defaultSampler;
+
+    if (sampler.minFilter == GL_NEAREST_MIPMAP_NEAREST ||
+        sampler.minFilter == GL_NEAREST_MIPMAP_LINEAR ||
+        sampler.minFilter == GL_LINEAR_MIPMAP_NEAREST ||
+        sampler.minFilter == GL_LINEAR_MIPMAP_LINEAR) {
+      glGenerateMipmap(GL_TEXTURE_2D);
+    }
+    glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER, sampler.minFilter != -1 ? sampler.minFilter : GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER, sampler.magFilter != -1 ? sampler.magFilter : GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_R, sampler.wrapR);
+    glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_S, sampler.wrapS);
+    glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_T, sampler.wrapT);
+
+  }
+  glBindTexture(GL_TEXTURE_2D, 0);
+  return textureList;
 }

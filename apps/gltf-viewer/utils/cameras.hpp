@@ -249,6 +249,7 @@ public:
 
 private:
   GLFWwindow *m_pWindow = nullptr;
+
   float m_fSpeed = 0.f;
   glm::vec3 m_worldUpAxis;
 
