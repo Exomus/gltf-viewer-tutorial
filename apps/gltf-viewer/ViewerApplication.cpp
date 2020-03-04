@@ -50,7 +50,8 @@ int ViewerApplication::run()
 
   const auto baseColorTextureLocation =
       glGetUniformLocation(glslProgram.glId(), "uBaseColorTexture");
-
+  const auto baseColorFactorLocation =
+      glGetUniformLocation(glslProgram.glId(), "uBaseColorFactor");
   glm::vec3 lightDirection(1, 1, 1);
   glm::vec3 lightIntensity(1, 1, 1);
   bool isLightComingFromCamera = false;
@@ -118,17 +119,28 @@ int ViewerApplication::run()
       const tinygltf::PbrMetallicRoughness &pbrMetallicRoughness = material.pbrMetallicRoughness;
 // only valid if pbrMetallicRoughness.baseColorTexture.index >= 0:
 
-      GLuint textureLocation;
-      if (pbrMetallicRoughness.baseColorTexture.index >= 0) {
+      if(pbrMetallicRoughness.baseColorTexture.index >= 0) {
         const auto &texture = model.textures[pbrMetallicRoughness.baseColorTexture.index];
+        glActiveTexture(GL_TEXTURE0);
         assert(texture.source >= 0);
-        textureLocation = textureObjects[texture.source];
-      } else {
-        textureLocation = whiteTexture;
+        glBindTexture(GL_TEXTURE_2D, textureObjects[texture.source]);
+        glUniform1i(baseColorTextureLocation, 0);
+        glUniform4f(baseColorFactorLocation,
+                    (float)pbrMetallicRoughness.baseColorFactor[0],
+                    (float)pbrMetallicRoughness.baseColorFactor[1],
+                    (float)pbrMetallicRoughness.baseColorFactor[2],
+                    (float)pbrMetallicRoughness.baseColorFactor[3]);
       }
-      glActiveTexture(GL_TEXTURE0);
-      glBindTexture(GL_TEXTURE_2D, textureLocation);
-      glUniform1i(baseColorTextureLocation,0);
+      else {
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, whiteTexture);
+        glUniform1i(baseColorTextureLocation, 0);
+        glUniform4f(baseColorFactorLocation,
+                    white[0],
+                    white[1],
+                    white[2],
+                    white[3]);
+      }
     }
   };
   // Lambda function to draw the scene
