@@ -70,7 +70,6 @@ int ViewerApplication::run()
   const auto occlusionStrengthLocation =
       glGetUniformLocation(glslProgram.glId(), "uOcclusionStrength");
 
-
   glm::vec3 lightDirection(1, 1, 1);
   glm::vec3 lightIntensity(1, 1, 1);
   bool isLightComingFromCamera = false;
@@ -135,6 +134,7 @@ int ViewerApplication::run()
     if (materialIndex >= 0) {
       const tinygltf::Material &material = model.materials[materialIndex];
       const auto &pbrMetallicRoughness = material.pbrMetallicRoughness;
+      
       if (pbrMetallicRoughness.baseColorTexture.index >= 0) {
         const auto &texture =
             model.textures[pbrMetallicRoughness.baseColorTexture.index];
@@ -155,6 +155,7 @@ int ViewerApplication::run()
         glUniform4f(
             baseColorFactorLocation, white[0], white[1], white[2], white[3]);
       }
+
       if (pbrMetallicRoughness.metallicRoughnessTexture.index >= 0) {
         const auto &texture =
             model.textures[pbrMetallicRoughness.metallicRoughnessTexture.index];
@@ -196,12 +197,15 @@ int ViewerApplication::run()
         assert(texture.source >= 0);
         glBindTexture(GL_TEXTURE_2D, textureObjects[texture.source]);
         glUniform1i(occlusionTextureLocation, 3);
-        glUniform1f(occlusionStrengthLocation, (float)material.occlusionTexture.strength);
+        glUniform1f(occlusionStrengthLocation,
+            (float)material.occlusionTexture.strength);
       } else {
         glActiveTexture(GL_TEXTURE3);
         glBindTexture(GL_TEXTURE_2D, 0);
         glUniform1i(occlusionTextureLocation, 3);
-        glUniform1f(occlusionStrengthLocation, 0.f); // the spec says to make 1.0f but we see with the teacher, and assume that we need 0.f occlusion by default
+        glUniform1f(occlusionStrengthLocation,
+            0.f); // the spec says to make 1.0f but we see with the teacher, and
+                  // assume that we need 0.f occlusion by default
       }
     }
   };

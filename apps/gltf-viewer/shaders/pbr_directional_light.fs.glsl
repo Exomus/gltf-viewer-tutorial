@@ -57,6 +57,7 @@ vec4 SRGBtoLINEAR(vec4 srgbIn)
 
 void main()
 {
+
     vec3 N = normalize(vViewSpaceNormal);
     vec3 L = uLightDirection;
     vec3 V = normalize(-vViewSpacePosition);

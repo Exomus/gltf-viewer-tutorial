@@ -86,5 +86,5 @@ private:
   std::vector<GLuint> createVertexArrayObjects(const tinygltf::Model &model,
       const std::vector<GLuint> &bufferObjects,
       std::vector<VaoRange> &meshIndexToVaoRange);
-  std::vector<GLuint> createTextureObjects(const tinygltf::Model& model) const;
+  std::vector<GLuint> createTextureObjects(const tinygltf::Model &model) const;
 };
