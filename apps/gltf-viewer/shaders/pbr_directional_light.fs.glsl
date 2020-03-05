@@ -68,12 +68,17 @@ void main()
 
     vec3 c_diffuse = mix(baseColor.rgb * (1 - dielectricSpecular.r), black, metallic);
     vec3 F_O = mix(dielectricSpecular, baseColor.rgb, metallic);
-    float alpha = pow(roughness, 2);
+    float alpha = roughness * roughness;
 
     float NdotL = clamp(dot(N, L), 0, 1);
     float NdotV = clamp(dot(N, V), 0, 1);
     float NdotH = clamp(dot(N, H), 0, 1);
     float VdotH = clamp(dot(V, H), 0, 1);
+
+
+    float NdotLpow2 = NdotL * NdotL;
+    float NdotVpow2 = NdotV * NdotV;
+    float NdotHpow2 = NdotH * NdotH;
 
     float baseShlickFactor = (1 - VdotH);
     float shlickFactor = baseShlickFactor * baseShlickFactor;
@@ -81,17 +86,17 @@ void main()
     shlickFactor *= baseShlickFactor;
     vec3 F = F_O + (1 - F_O) * shlickFactor;
 
-    float alphaPowTwo = pow(alpha, 2);
-    float denominatorVis = NdotL * sqrt(pow(NdotV, 2) * (1 - alphaPowTwo) + alphaPowTwo) + NdotV * sqrt(pow(NdotL, 2) * (1 - alphaPowTwo) + alphaPowTwo);
+    float alphaPow2 = alpha * alpha;
+    float denominatorVis = NdotL * sqrt(NdotVpow2 * (1 - alphaPow2) + alphaPow2) + NdotV * sqrt(NdotLpow2 * (1 - alphaPow2) + alphaPow2);
     float Vis = 0;
     if (denominatorVis > 0) {
         Vis = 0.5 / denominatorVis;
     }
 
-    float denominatorD = M_PI * pow(pow(NdotH, 2) * (alphaPowTwo - 1) + 1, 2);
+    float denominatorD = M_PI * (NdotHpow2 * (alphaPow2 - 1) + 1) * (NdotHpow2 * (alphaPow2 - 1) + 1);
     float D = 0;
     if (denominatorD > 0) {
-        D = alphaPowTwo / denominatorD;
+        D = alphaPow2 / denominatorD;
     }
 
     vec3 diffuse = c_diffuse / M_PI;
