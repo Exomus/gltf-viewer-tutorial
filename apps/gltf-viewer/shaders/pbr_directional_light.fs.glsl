@@ -17,6 +17,9 @@ uniform sampler2D uMetallicRoughnessTexture;
 uniform sampler2D uEmissiveTexture;
 uniform vec3 uEmissiveFactor;
 
+uniform sampler2D uOcclusionTexture;
+uniform float uOcclusionStrength;
+
 out vec3 fColor;
 
 // Constants
@@ -58,8 +61,10 @@ void main()
     float metallic = uMetallicFactor * metallicRoughnessFromTexture.b;
     float roughness = uRoughnessFactor * metallicRoughnessFromTexture.g;
 
-    vec4 baseEmissiveFromTexture = texture(uEmissiveTexture, vTexCoords);
+    vec4 baseEmissiveFromTexture = SRGBtoLINEAR(texture(uEmissiveTexture, vTexCoords));
     vec4 emissiveVector = baseEmissiveFromTexture * vec4(uEmissiveFactor, 0);
+
+    vec4 baseOcclusionFromTexture = texture(uOcclusionTexture, vTexCoords);
 
     vec3 c_diffuse = mix(baseColor.rgb * (1 - dielectricSpecular.r), black, metallic);
     vec3 F_O = mix(dielectricSpecular, baseColor.rgb, metallic);
@@ -94,5 +99,7 @@ void main()
     vec3 f_diffuse = (1 - F) * diffuse;
     vec3 f_specular = F * Vis * D;
 
-    fColor = LINEARtoSRGB((f_diffuse + f_specular) * uLightIntensity * NdotL)+ vec3(emissiveVector);
+    fColor = (f_diffuse + f_specular) * uLightIntensity * NdotL + vec3(emissiveVector);
+    fColor = mix(fColor, fColor * baseOcclusionFromTexture.r, uOcclusionStrength);
+    fColor = LINEARtoSRGB(fColor);
 }
