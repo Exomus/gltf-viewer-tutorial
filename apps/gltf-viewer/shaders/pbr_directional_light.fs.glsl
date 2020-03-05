@@ -14,6 +14,9 @@ uniform float uMetallicFactor;
 uniform float uRoughnessFactor;
 uniform sampler2D uMetallicRoughnessTexture;
 
+uniform sampler2D uEmissiveTexture;
+uniform vec3 uEmissiveFactor;
+
 out vec3 fColor;
 
 // Constants
@@ -55,6 +58,9 @@ void main()
     float metallic = uMetallicFactor * metallicRoughnessFromTexture.b;
     float roughness = uRoughnessFactor * metallicRoughnessFromTexture.g;
 
+    vec4 baseEmissiveFromTexture = texture(uEmissiveTexture, vTexCoords);
+    vec4 emissiveVector = baseEmissiveFromTexture * vec4(uEmissiveFactor, 0);
+
     vec3 c_diffuse = mix(baseColor.rgb * (1 - dielectricSpecular.r), black, metallic);
     vec3 F_O = mix(dielectricSpecular, baseColor.rgb, metallic);
     float alpha = pow(roughness, 2);
@@ -73,13 +79,13 @@ void main()
     float alphaPowTwo = pow(alpha, 2);
     float denominatorVis = NdotL * sqrt(pow(NdotV, 2) * (1 - alphaPowTwo) + alphaPowTwo) + NdotV * sqrt(pow(NdotL, 2) * (1 - alphaPowTwo) + alphaPowTwo);
     float Vis = 0;
-    if(denominatorVis > 0) {
+    if (denominatorVis > 0) {
         Vis = 0.5 / denominatorVis;
     }
 
     float denominatorD = M_PI * pow(pow(NdotH, 2) * (alphaPowTwo - 1) + 1, 2);
     float D = 0;
-    if(denominatorD > 0) {
+    if (denominatorD > 0) {
         D = alphaPowTwo / denominatorD;
     }
 
@@ -88,5 +94,5 @@ void main()
     vec3 f_diffuse = (1 - F) * diffuse;
     vec3 f_specular = F * Vis * D;
 
-    fColor = LINEARtoSRGB((f_diffuse + f_specular) * uLightIntensity * NdotL);
+    fColor = LINEARtoSRGB((f_diffuse + f_specular) * uLightIntensity * NdotL)+ vec3(emissiveVector);
 }

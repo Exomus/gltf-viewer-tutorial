@@ -59,6 +59,12 @@ int ViewerApplication::run()
       glGetUniformLocation(glslProgram.glId(), "uRoughnessFactor");
   const auto metallicRoughnessTextureLocation =
       glGetUniformLocation(glslProgram.glId(), "uMetallicRoughnessTexture");
+
+  const auto emissiveTextureLocation =
+      glGetUniformLocation(glslProgram.glId(), "uEmissiveTexture");
+  const auto emissiveFactorLocation =
+      glGetUniformLocation(glslProgram.glId(), "uEmissiveFactor");
+
   glm::vec3 lightDirection(1, 1, 1);
   glm::vec3 lightIntensity(1, 1, 1);
   bool isLightComingFromCamera = false;
@@ -121,7 +127,7 @@ int ViewerApplication::run()
 
   const auto bindMaterial = [&](const auto materialIndex) {
     if(materialIndex >= 0) {
-      const auto &material = model.materials[materialIndex];
+      const tinygltf::Material &material = model.materials[materialIndex];
       const auto &pbrMetallicRoughness = material.pbrMetallicRoughness;
       if(pbrMetallicRoughness.baseColorTexture.index >= 0) {
         const auto &texture = model.textures[pbrMetallicRoughness.baseColorTexture.index];
@@ -166,6 +172,23 @@ int ViewerApplication::run()
         glUniform1f(roughnessFactorLocation,
                     0);
       }
+
+      if (material.emissiveTexture.index >= 0) {
+        const auto &texture = model.textures[material.emissiveTexture.index];
+        glActiveTexture(GL_TEXTURE2);
+        assert(texture.source >= 0);
+        glBindTexture(GL_TEXTURE_2D,textureObjects[texture.source]);
+        glUniform1i(emissiveTextureLocation,2);
+        glUniform3f(emissiveFactorLocation,
+                    (float)material.emissiveFactor[0], (float)material.emissiveFactor[1], (float)material.emissiveFactor[2]);
+      } else {
+        glActiveTexture(GL_TEXTURE2);
+        glBindTexture(GL_TEXTURE_2D, 0);
+        glUniform1i(emissiveTextureLocation, 2);
+        glUniform3f(emissiveFactorLocation,
+                    0.f,0.f,0.f);
+      }
+
     }
   };
   // Lambda function to draw the scene
